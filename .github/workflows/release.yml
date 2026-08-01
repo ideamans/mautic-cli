@@ -1,0 +1,47 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # goreleaser needs history for the changelog
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Read the constant out of the source rather than parsing --version:
+      # that string is a template we own, and changing it would break releases.
+      - name: Verify the tag matches PluginVersion
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          declared=$(grep -oE 'PluginVersion = "[^"]+"' cmd/root.go | cut -d'"' -f2)
+          echo "tag=$tag declared=$declared"
+          [ "$tag" = "$declared" ] || {
+            echo "::error::tag $GITHUB_REF_NAME does not match PluginVersion $declared in cmd/root.go"
+            exit 1
+          }
+
+      # A tag push that produces a broken binary is expensive to undo.
+      - name: Test
+        run: |
+          go generate ./...
+          git diff --exit-code -- internal/llmdocs
+          go test -race ./...
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

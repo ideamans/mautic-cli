@@ -1,0 +1,6 @@
+/dist/
+/mautic
+/mautic-cli
+*.test
+.DS_Store
+.claude/settings.local.json

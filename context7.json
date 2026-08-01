@@ -1,0 +1,22 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "mautic-cli",
+  "description": "Command line client for the Mautic REST API. Named credential profiles, basic auth and OAuth2, the full endpoint surface as noun-verb subcommands, and an embedded reference for AI agents via `mautic llm`.",
+  "folders": ["internal/llmdocs"],
+  "excludeFolders": ["node_modules", "dist", "vendor", "testdata"],
+  "rules": [
+    "Run `mautic auth status --verify` before anything else; it works with nothing configured and names exactly what is missing.",
+    "Credentials resolve flag > environment variable > config file, and a complete set in the environment beats every named profile — that is what makes the same commands work in CI.",
+    "MAUTIC_BASE_URL may be given with or without a trailing /api; both my-mautic-assistant's MAUTIC_API_ENDPOINT (with /api) and the raw instance root are accepted and normalised.",
+    "Never hand-assemble a request body. Every writable property has a flag, unmodelled fields go through --set alias=value, and --data @file.json is only for nested structures such as campaign events or segment filters.",
+    "Contact field aliases are configured per instance: run `mautic fields list` before writing. Mautic ignores unknown properties silently, so a typo'd alias looks like a successful write.",
+    "Parse --format json, jsonl or csv. The default table truncates cells and shows a curated column subset, so parsing it produces plausible nonsense.",
+    "In --format json a list is {\"total\":N,\"count\":M,\"items\":[...]}: total is the whole collection, count is what this call returned. Compare them before answering \"how many\".",
+    "--order-by and --where take database column names in snake_case (date_identified, lead_id), not the camelCase property names in the response. A wrong column is ignored silently rather than rejected.",
+    "Segments are called lists inside Mautic: /segments returns {\"lists\":[...]} and one segment is {\"list\":{...}}. The --lists flag on emails takes segment IDs.",
+    "Anonymous visitors are contacts, so most records on a busy instance have no email; filter with --where email:isNotNull before drawing conclusions about contact counts.",
+    "Use `mautic stats query <table>` and `mautic data get <type>` for volume questions instead of paging entity endpoints; their timestamps are UTC while entity dates use the instance timezone.",
+    "`mautic emails send` mails every contact in the email's segments and cannot be recalled: run --dry-run first, read the target line on stderr, and pass --yes deliberately.",
+    "`mautic api <METHOD> <PATH>` reaches any endpoint this CLI does not wrap, reusing the same credentials, retries and --dry-run. PATH is relative to the API root, so pass /contacts and not /api/contacts."
+  ]
+}

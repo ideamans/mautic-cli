@@ -1,0 +1,69 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify go.mod is tidy
+        run: go mod tidy && git diff --exit-code -- go.mod go.sum
+
+      - run: go vet ./...
+
+      - run: go build ./...
+
+      # The generated command catalog is committed, because go:embed needs a
+      # real file at build time. The guard against drift is regenerating it here
+      # and failing on a dirty tree.
+      - name: Regenerate the embedded LLM reference
+        run: go generate ./...
+
+      - name: Fail if the committed reference is stale
+        run: |
+          if ! git diff --exit-code -- internal/llmdocs; then
+            echo "::error::internal/llmdocs is out of date. Run 'go generate ./...' and commit the result."
+            exit 1
+          fi
+
+      # Covers TestPluginSkills: plugin.json version match, Agent Skills
+      # frontmatter, discovery keywords, presence of the install skill.
+      - run: go test -race ./...
+
+      - name: Verify the llm subcommand renders
+        run: |
+          go run ./cmd/mautic llm | head -5
+          go run ./cmd/mautic llm --format json | head -5
+
+      - name: Verify the deprecated --llm flag still works
+        run: go run ./cmd/mautic contacts list --llm | head -1
+
+      # auth status must work with nothing configured and say what is missing;
+      # it is the first thing every usage skill runs.
+      - name: Verify auth status works with no credentials
+        env:
+          MAUTIC_CLI_HOME: ${{ runner.temp }}/mautic-cli-empty
+        run: |
+          output=$(go run ./cmd/mautic auth status 2>&1 || true)
+          echo "$output"
+          echo "$output" | grep -q "MAUTIC_BASE_URL" || {
+            echo "::error::auth status must name the missing credentials"; exit 1; }
+
+  goreleaser-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: check
