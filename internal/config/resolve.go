@@ -145,7 +145,7 @@ func Resolve(o Overrides) (*Credentials, error) {
 		Redirect:     prof.Redirect,
 		AccessToken:  sec.AccessToken,
 		RefreshToken: sec.RefreshToken,
-		Expiry:       sec.Expiry,
+		Expiry:       TimeValue(sec.Expiry),
 	}
 	applyOverrides(c, o)
 	return c, c.validate()

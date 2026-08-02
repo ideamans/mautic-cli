@@ -249,7 +249,7 @@ Basic auth needs none of this: "mautic configure --username <user> --password
 			if tok.refresh != "" {
 				sec.RefreshToken = tok.refresh
 			}
-			sec.Expiry = tok.expiry
+			sec.Expiry = config.TimePtr(tok.expiry)
 			secrets.Profiles[profileName] = sec
 			if err := secrets.Save(); err != nil {
 				return err

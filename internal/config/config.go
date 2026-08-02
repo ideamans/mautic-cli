@@ -61,11 +61,31 @@ type Config struct {
 
 // Secret holds one profile's secret material.
 type Secret struct {
-	Password     string    `json:"password,omitempty"`
-	ClientSecret string    `json:"client_secret,omitempty"`
-	AccessToken  string    `json:"access_token,omitempty"`
-	RefreshToken string    `json:"refresh_token,omitempty"`
-	Expiry       time.Time `json:"expiry,omitempty"`
+	Password     string `json:"password,omitempty"`
+	ClientSecret string `json:"client_secret,omitempty"`
+	AccessToken  string `json:"access_token,omitempty"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	// Expiry is a pointer because `omitempty` has no effect on a struct:
+	// a plain time.Time would write "0001-01-01T00:00:00Z" into every
+	// basic-auth profile, which reads as a real expiry that already passed.
+	Expiry *time.Time `json:"expiry,omitempty"`
+}
+
+// TimePtr returns a pointer to t, or nil when t is the zero time, so that an
+// absent expiry stays absent in credentials.json.
+func TimePtr(t time.Time) *time.Time {
+	if t.IsZero() {
+		return nil
+	}
+	return &t
+}
+
+// TimeValue dereferences an optional time, treating nil as the zero time.
+func TimeValue(t *time.Time) time.Time {
+	if t == nil {
+		return time.Time{}
+	}
+	return *t
 }
 
 // Secrets is the whole of credentials.json.
@@ -190,6 +210,14 @@ func LoadSecrets() (*Secrets, error) {
 	if s.Profiles == nil {
 		s.Profiles = map[string]Secret{}
 	}
+	// Heal files written before Expiry became optional: a zero expiry decodes
+	// to a non-nil pointer, which would then be written straight back out.
+	for name, sec := range s.Profiles {
+		if sec.Expiry != nil && sec.Expiry.IsZero() {
+			sec.Expiry = nil
+			s.Profiles[name] = sec
+		}
+	}
 	return s, nil
 }
 
@@ -230,7 +258,7 @@ func SaveTokens(profile, accessToken, refreshToken string, expiry time.Time) err
 	if refreshToken != "" {
 		sec.RefreshToken = refreshToken
 	}
-	sec.Expiry = expiry
+	sec.Expiry = TimePtr(expiry)
 	s.Profiles[profile] = sec
 	return s.Save()
 }

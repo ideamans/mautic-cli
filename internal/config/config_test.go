@@ -257,3 +257,66 @@ func TestMissingFilesAreEmptyNotErrors(t *testing.T) {
 
 // creds0 is a zero expiry, spelled out so the test reads clearly.
 func creds0() time.Time { return time.Time{} }
+
+// encoding/json's omitempty does nothing for a struct, so a plain time.Time
+// expiry would write "0001-01-01T00:00:00Z" into every basic-auth profile —
+// a real-looking expiry that already passed.
+func TestBasicAuthProfileHasNoExpiryField(t *testing.T) {
+	isolate(t)
+	secrets := &Secrets{Profiles: map[string]Secret{"default": {Password: "p"}}}
+	if err := secrets.Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	path, _ := SecretsPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if strings.Contains(string(data), "expiry") {
+		t.Errorf("credentials.json should carry no expiry for basic auth:\n%s", data)
+	}
+}
+
+// An OAuth2 profile must still round-trip its expiry.
+func TestOAuth2ExpiryRoundTrips(t *testing.T) {
+	isolate(t)
+	want := time.Date(2026, 8, 3, 12, 0, 0, 0, time.UTC)
+	if err := SaveTokens("oauth", "at", "rt", want); err != nil {
+		t.Fatalf("SaveTokens: %v", err)
+	}
+	secrets, err := LoadSecrets()
+	if err != nil {
+		t.Fatalf("LoadSecrets: %v", err)
+	}
+	got := TimeValue(secrets.Profiles["oauth"].Expiry)
+	if !got.Equal(want) {
+		t.Errorf("expiry = %v, want %v", got, want)
+	}
+}
+
+// A credentials.json written before Expiry became optional carries a zero
+// timestamp. Loading must drop it, or `configure` writes it straight back.
+func TestZeroExpiryIsHealedOnLoad(t *testing.T) {
+	dir := isolate(t)
+	legacy := `{"profiles":{"default":{"password":"p","expiry":"0001-01-01T00:00:00Z"}}}`
+	if err := os.WriteFile(filepath.Join(dir, credsFileName), []byte(legacy), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	secrets, err := LoadSecrets()
+	if err != nil {
+		t.Fatalf("LoadSecrets: %v", err)
+	}
+	if secrets.Profiles["default"].Expiry != nil {
+		t.Error("a zero expiry should be dropped on load")
+	}
+	if err := secrets.Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	data, _ := os.ReadFile(filepath.Join(dir, credsFileName))
+	if strings.Contains(string(data), "expiry") {
+		t.Errorf("re-saving should not reintroduce expiry:\n%s", data)
+	}
+	if !strings.Contains(string(data), `"password": "p"`) {
+		t.Errorf("the password must survive the heal:\n%s", data)
+	}
+}
