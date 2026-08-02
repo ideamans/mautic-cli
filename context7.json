@@ -3,7 +3,7 @@
   "projectTitle": "mautic-cli",
   "description": "Command line client for the Mautic REST API. Named credential profiles, basic auth and OAuth2, the full endpoint surface as noun-verb subcommands, and an embedded reference for AI agents via `mautic llm`.",
   "folders": ["internal/llmdocs"],
-  "excludeFolders": ["node_modules", "dist", "vendor", "testdata"],
+  "excludeFolders": ["plugins", ".github", ".claude", "node_modules", "dist", "vendor", "testdata"],
   "rules": [
     "Run `mautic auth status --verify` before anything else; it works with nothing configured and names exactly what is missing.",
     "Credentials resolve flag > environment variable > config file, and a complete set in the environment beats every named profile — that is what makes the same commands work in CI.",
