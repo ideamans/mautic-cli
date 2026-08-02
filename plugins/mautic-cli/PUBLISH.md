@@ -25,7 +25,9 @@ git push origin v0.1.0
 
 ## Registering in the marketplace (first release only)
 
-`ideamans/claude-public-plugins` の `.claude-plugin/marketplace.json` に追加:
+`ideamans/claude-public-plugins`（marketplace 名 `ideamans-plugins`。gridgram と
+chartjs2img が既に入っている）の `.claude-plugin/marketplace.json` の
+`plugins` 配列に追加する。既存エントリと同じ形に揃えること:
 
 ```json
 {
@@ -34,7 +36,13 @@ git push origin v0.1.0
     "source": "git-subdir",
     "url": "https://github.com/ideamans/mautic-cli.git",
     "path": "plugins/mautic-cli"
-  }
+  },
+  "description": "Adds /mautic-usage and /mautic-install skills for Mautic marketing automation — contacts, segments, campaigns, emails and the stats tables from the command line.",
+  "homepage": "https://github.com/ideamans/mautic-cli",
+  "repository": "https://github.com/ideamans/mautic-cli",
+  "license": "MIT",
+  "keywords": ["mautic", "marketing-automation", "crm", "email-marketing", "cli", "llm"],
+  "category": "productivity"
 }
 ```
 
@@ -71,7 +79,7 @@ curl -sS -G https://context7.com/api/v2/search --data-urlencode 'query=mautic-cl
 
 ```
 /plugin marketplace add ideamans/claude-public-plugins
-/plugin install mautic-cli@ideamans
+/plugin install mautic-cli@ideamans-plugins
 /mautic-install
 /mautic-usage
 ```

@@ -178,7 +178,7 @@ Claude Code などから使う場合は、プラグイン `mautic-cli` をイン
 
 ```
 /plugin marketplace add ideamans/claude-public-plugins
-/plugin install mautic-cli@ideamans
+/plugin install mautic-cli@ideamans-plugins
 ```
 
 Copilot / Cursor / Gemini CLI 等では同じスキルを `gh skill` で入れられる。
