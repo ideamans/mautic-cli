@@ -148,6 +148,14 @@ func DecodePage(raw json.RawMessage, preferKey string) (*Page, error) {
 	}
 
 	collection, ok := envelope[preferKey]
+	if !ok && isBareCollection(envelope) {
+		// A few endpoints — /contacts/list/fields is the one that bites —
+		// return the collection as the entire response body, keyed by record
+		// ID, with no wrapper and no total. Without this case the first record
+		// gets mistaken for the collection and its properties come out as rows.
+		collection, page.Key = raw, ""
+		ok = true
+	}
 	if !ok {
 		for _, key := range sortedMapKeys(envelope) {
 			if key == "total" {
@@ -205,6 +213,25 @@ func decodeCollection(raw json.RawMessage) ([]json.RawMessage, error) {
 		items = append(items, obj[k])
 	}
 	return items, nil
+}
+
+// isBareCollection reports whether the response body is itself the collection:
+// no `total`, at least one entry, and every value an object. The `total` check
+// is what keeps a normal envelope such as {"total":1,"contacts":{…}} out, and
+// requiring every value to be an object keeps {"success":1,"types":{…}} out.
+func isBareCollection(envelope map[string]json.RawMessage) bool {
+	if len(envelope) == 0 {
+		return false
+	}
+	if _, hasTotal := envelope["total"]; hasTotal {
+		return false
+	}
+	for _, v := range envelope {
+		if !strings.HasPrefix(strings.TrimSpace(string(v)), "{") {
+			return false
+		}
+	}
+	return true
 }
 
 func looksLikeCollection(raw json.RawMessage) bool {

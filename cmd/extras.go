@@ -227,7 +227,38 @@ has to be sent per contact with "mautic emails send-to-contact".`,
 	}
 	sendTo.Flags().StringVar(&tokens, "tokens", "", "token replacements as a JSON object, inline or @file.json")
 
-	group.AddCommand(send, sendTo)
+	reply := &cobra.Command{
+		Use:   "reply <tracking-hash>",
+		Short: "Record that a send received a reply",
+		Long: `Record that a send received a reply.
+
+The tracking hash is the unique hash Mautic generates for each email send, not
+the email ID — read it from email_stats.tracking_hash:
+
+  mautic stats query email_stats --where lead_id:eq:1234 --fields id,email_id,tracking_hash
+
+Recording a reply also marks the send as read, so it changes the open statistics
+for that email. It is meant for inbound mail processors feeding replies back into
+Mautic.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := confirmed(cmd, "recording a reply against send "+args[0]+", which also marks it read, and"); err != nil {
+				return err
+			}
+			client, creds, err := newClient(cmd.Context())
+			if err != nil {
+				return err
+			}
+			noteTarget(cmd, creds)
+			raw, err := client.Do(cmd.Context(), "POST", "/emails/reply/"+args[0], nil, map[string]any{})
+			if err != nil {
+				return err
+			}
+			return emitRaw(cmd, raw)
+		},
+	}
+
+	group.AddCommand(send, sendTo, reply)
 }
 
 func smsExtras(group *cobra.Command, _ Resource) {

@@ -33,8 +33,12 @@ func contactExtras(group *cobra.Command, r Resource) {
 		subList("notes <contact-id>", "List the notes attached to a contact", 1,
 			func(a []string) string { return "/contacts/" + a[0] + "/notes" },
 			"notes", []string{"id", "type", "text", "dateTime"}),
+		contactEventsCommand(),
 		subGet("owners", "List the Mautic users who can own contacts", 0,
 			func([]string) string { return "/contacts/list/owners" }, "", nil),
+		subList("fields", "List the contact field definitions", 0,
+			func([]string) string { return "/contacts/list/fields" },
+			"fields", []string{"id", "alias", "label", "type", "group"}),
 		contactPointsCommand(),
 		contactDNCCommand(),
 		contactUTMCommand(),
@@ -125,6 +129,69 @@ func contactActivityAllCommand() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runActivity(cmd, "/contacts/activity", f)
+		},
+	}
+	f.register(cmd)
+	return cmd
+}
+
+// contactEventsCommand wraps GET /contacts/ID/events.
+//
+// Mautic deprecated this in favour of the activity endpoint and removed it
+// outright in 7.0, so on a current instance it 404s. It stays because the
+// endpoint is documented and still present on 2.x–6.x, and because an agent
+// working from Mautic's own docs will reach for it — better that it fails with
+// a sentence naming the replacement than with a bare 404.
+func contactEventsCommand() *cobra.Command {
+	var f activityFlags
+	cmd := &cobra.Command{
+		Use:   "events <contact-id>",
+		Short: "Show one contact's events (removed in Mautic 7 — use `activity`)",
+		Long: `Show one contact's events.
+
+Deprecated in favour of "mautic contacts activity", and removed in Mautic 7.0:
+on a 7.x instance this returns 404. Use "mautic contacts activity" instead.
+
+It remains for instances still on 2.x–6.x. Note that it nests its filters under
+filters[...], where the activity endpoint takes them as bare parameters.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, _, err := newClient(cmd.Context())
+			if err != nil {
+				return err
+			}
+			// This endpoint nests its filters, unlike /activity.
+			q := url.Values{}
+			if f.search != "" {
+				q.Set("filters[search]", f.search)
+			}
+			for _, t := range f.includeType {
+				q.Add("filters[includeEvents][]", t)
+			}
+			for _, t := range f.excludeType {
+				q.Add("filters[excludeEvents][]", t)
+			}
+			if f.page > 0 {
+				q.Set("page", strconv.Itoa(f.page))
+			}
+			if f.order != "" {
+				q.Set("order[1]", f.order)
+			}
+			raw, err := client.Get(cmd.Context(), "/contacts/"+args[0]+"/events", q)
+			if mautic.IsNotFound(err) {
+				return fmt.Errorf("this instance has no /contacts/%s/events endpoint\n  Mautic removed it in 7.0 — use: mautic contacts activity %s", args[0], args[0])
+			}
+			if err != nil {
+				return err
+			}
+			if flagFormat == formatJSON {
+				return emitRaw(cmd, raw)
+			}
+			page, err := decodeNamed(raw, "events")
+			if err != nil {
+				return err
+			}
+			return emitPage(cmd, page, activityColumns)
 		},
 	}
 	f.register(cmd)

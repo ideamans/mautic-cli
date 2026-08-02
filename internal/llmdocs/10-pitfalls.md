@@ -32,9 +32,22 @@ point of it.
 ## Collections come back as objects keyed by ID, not arrays
 
 Most list endpoints return `{"total":"12","contacts":{"47":{…},"51":{…}}}`. Some
-return an array instead, and `total` is sometimes a string and sometimes a
-number. This CLI normalises all of it: `--format json` always gives
+return an array instead, `total` is sometimes a string and sometimes a number,
+and a few — `/contacts/list/fields` is the one that bites — return the
+collection as the *entire body* with no wrapper and no `total` at all. This CLI
+normalises all of it: `--format json` always gives
 `{"total":N,"count":M,"items":[…]}` with items in ascending ID order.
+
+## Some documented endpoints are gone from Mautic 7
+
+The API documentation still describes endpoints that newer releases dropped.
+`GET /contacts/<id>/events` is the one you will hit: deprecated in favour of the
+activity endpoint, then removed in 7.0, so `mautic contacts events` returns 404
+on a current instance. Use `mautic contacts activity` instead.
+
+If a documented endpoint 404s while everything else works, suspect this before
+suspecting credentials — check the instance version with
+`mautic auth status --verify`.
 
 ## Anonymous visitors are contacts
 

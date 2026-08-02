@@ -152,3 +152,59 @@ func TestListParamsEncodesAdvancedFilters(t *testing.T) {
 		t.Error("an empty search should be omitted")
 	}
 }
+
+// /contacts/list/fields returns the collection as the entire response body,
+// keyed by record ID, with no wrapper key and no total. Without a case for
+// this, the first record is mistaken for the collection and its properties come
+// out as rows.
+func TestDecodePageBareCollection(t *testing.T) {
+	raw := json.RawMessage(`{
+	  "1":  {"id":1,"alias":"title","label":"Title"},
+	  "10": {"id":10,"alias":"fax","label":"Fax"},
+	  "2":  {"id":2,"alias":"firstname","label":"First Name"}
+	}`)
+	page, err := DecodePage(raw, "fields")
+	if err != nil {
+		t.Fatalf("DecodePage: %v", err)
+	}
+	if len(page.Items) != 3 {
+		t.Fatalf("got %d items, want 3", len(page.Items))
+	}
+	if page.Total != 3 {
+		t.Errorf("Total = %d, want 3", page.Total)
+	}
+	var first struct {
+		Alias string `json:"alias"`
+	}
+	if err := json.Unmarshal(page.Items[0], &first); err != nil {
+		t.Fatal(err)
+	}
+	// Numeric key order: 1, 2, 10.
+	if first.Alias != "title" {
+		t.Errorf("first item alias = %q, want title", first.Alias)
+	}
+}
+
+// A normal envelope must not be mistaken for a bare collection.
+func TestDecodePageDoesNotTreatEnvelopesAsBare(t *testing.T) {
+	raw := json.RawMessage(`{"total":1,"contacts":{"5":{"id":5}}}`)
+	page, err := DecodePage(raw, "contacts")
+	if err != nil {
+		t.Fatalf("DecodePage: %v", err)
+	}
+	if len(page.Items) != 1 || page.Key != "contacts" {
+		t.Fatalf("got key=%q items=%d", page.Key, len(page.Items))
+	}
+}
+
+// Nor must a mixed object such as /data's {"success":1,"types":{…}}.
+func TestDecodePageIgnoresMixedObjects(t *testing.T) {
+	raw := json.RawMessage(`{"success":1,"types":{"a":{"x":1},"b":{"x":2}}}`)
+	page, err := DecodePage(raw, "types")
+	if err != nil {
+		t.Fatalf("DecodePage: %v", err)
+	}
+	if page.Key != "types" || len(page.Items) != 2 {
+		t.Fatalf("got key=%q items=%d", page.Key, len(page.Items))
+	}
+}

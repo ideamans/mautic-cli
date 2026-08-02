@@ -824,6 +824,51 @@ Clear a contact's do-not-contact flag on a channel
 mautic contacts dnc remove <contact-id> <channel>
 ```
 
+### `mautic contacts events`
+
+Show one contact's events (removed in Mautic 7 — use `activity`)
+
+Show one contact's events.
+
+Deprecated in favour of "mautic contacts activity", and removed in Mautic 7.0:
+on a 7.x instance this returns 404. Use "mautic contacts activity" instead.
+
+It remains for instances still on 2.x–6.x. Note that it nests its filters under
+filters[...], where the activity endpoint takes them as bare parameters.
+
+```
+mautic contacts events <contact-id>
+```
+
+| flag | type | default | description |
+| --- | --- | --- | --- |
+| `--date-from` | string | — | earliest event date, as YYYY-MM-DD |
+| `--date-to` | string | — | latest event date, as YYYY-MM-DD |
+| `--exclude-type` | stringArray | `[]` | event type to exclude, repeatable |
+| `--include-type` | stringArray | `[]` | event type to include, repeatable (e.g. email.read, page.hit, form.submitted) |
+| `--limit` | int | `0` | events per page |
+| `--order-dir` | string | — | sort direction for the timestamp: asc or desc |
+| `--page` | int | `0` | page number, starting at 1 |
+| `--search` | string | — | filter events by a search string |
+
+### `mautic contacts fields`
+
+List the contact field definitions
+
+| flag | type | default | description |
+| --- | --- | --- | --- |
+| `--all` | bool | `false` | fetch every page, not just the first |
+| `--limit` | int | `30` | maximum number of records to return |
+| `--minimal` | bool | `false` | omit the nested lists from each record, which is much faster |
+| `--order` | stringArray | `[]` | advanced sort as col:dir, repeatable |
+| `--order-by` | string | — | column to sort by, in snake_case (dateIdentified is date_identified) |
+| `--order-dir` | string | — | sort direction: asc or desc |
+| `--page-size` | int | `100` | records per request when --all is set |
+| `--published-only` | bool | `false` | return only published records |
+| `--search` | string | — | search string or Mautic search command to filter by |
+| `--start` | int | `0` | starting row |
+| `--where` | stringArray | `[]` | advanced filter as col:expr:value, repeatable (expr: eq, neq, gt, gte, lt, lte, like, in, notIn, isNull, isNotNull) |
+
 ### `mautic contacts get`
 
 Get one record by ID
@@ -1220,6 +1265,25 @@ List emails
 | `--search` | string | — | search string or Mautic search command to filter by |
 | `--start` | int | `0` | starting row |
 | `--where` | stringArray | `[]` | advanced filter as col:expr:value, repeatable (expr: eq, neq, gt, gte, lt, lte, like, in, notIn, isNull, isNotNull) |
+
+### `mautic emails reply`
+
+Record that a send received a reply
+
+Record that a send received a reply.
+
+The tracking hash is the unique hash Mautic generates for each email send, not
+the email ID — read it from email_stats.tracking_hash:
+
+  mautic stats query email_stats --where lead_id:eq:1234 --fields id,email_id,tracking_hash
+
+Recording a reply also marks the send as read, so it changes the open statistics
+for that email. It is meant for inbound mail processors feeding replies back into
+Mautic.
+
+```
+mautic emails reply <tracking-hash>
+```
 
 ### `mautic emails send`
 
