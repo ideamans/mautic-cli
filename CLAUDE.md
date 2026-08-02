@@ -60,6 +60,41 @@ public marketplace・`gh skill` の4経路。
 **`coerce()` は先頭ゼロを文字列のまま残す**。`--set zipcode=0120` が 120 に
 なると無言でレコードが壊れる。日本の郵便番号・電話番号で実際に踏む。
 
+## 未解決: context7 が llmdocs を取り込んでいない
+
+2026-08-02 の初回登録で、インデックスされたのが `README.md` と `CLAUDE.md` だけ
+だった（`totalTokens=3135`）。`context7.json` の `folders` には
+`internal/llmdocs` を指定済みなので、標準が警告する「指定漏れ」ではない。
+
+```bash
+curl -sS -G https://context7.com/api/v2/context \
+  --data-urlencode 'libraryId=/ideamans/mautic-cli' \
+  --data-urlencode 'query=segments are called lists' \
+  -H "Authorization: Bearer $CONTEXT7_API_KEY" | grep '^Source:'
+```
+
+打った手と、まだ確かめられていない仮説:
+
+1. **実施済み** — `excludeFolders` に `plugins` / `.github` / `.claude` を追加した。
+   llmdocs の取り込みに成功している crux-cli・rakkokeyword-cli との唯一の差分が
+   ここだったため。ただし**因果は未実証**
+2. **未検証** — `90-commands.md`（128KB / 3300行）が単一ファイルの上限に当たり、
+   フォルダごと落ちている可能性。もし 1 で直らないなら
+   `excludeFiles: ["internal/llmdocs/90-commands.md"]` を試す価値がある
+   （カタログは `mautic llm` と `--help` で届くので、context7 に無くても実害は小さい）
+
+**再インデックスは即時にはできない。** `POST /api/v1/refresh` は
+`Minimum 10 days required between updates` を返す。2026-08-12 以降に:
+
+```bash
+curl -sS -X POST https://context7.com/api/v1/refresh \
+  -H "Authorization: Bearer $CONTEXT7_API_KEY" -H 'Content-Type: application/json' \
+  -d '{"libraryName":"/ideamans/mautic-cli"}'
+```
+
+4つの配布経路のうち context7 だけの問題で、`mautic llm`・Claude プラグイン・
+`gh skill` は同じナレッジを届けている。
+
 ## 確認
 
 ```bash
