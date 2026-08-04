@@ -4,3 +4,8 @@
 *.test
 .DS_Store
 .claude/settings.local.json
+
+# 認証情報。public リポジトリなので絶対にコミットしない
+.env
+.env.*
+!.env.example

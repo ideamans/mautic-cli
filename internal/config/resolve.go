@@ -13,11 +13,14 @@ import (
 // mautic-common-oauth2 (MAUTIC_BASE_URL / MAUTIC_CLIENT_ID / ...) works with no
 // changes. Error messages always name the first entry.
 var (
-	envBaseURL      = []string{"MAUTIC_BASE_URL", "MAUTIC_API_ENDPOINT", "MAUTIC_URL"}
-	envUsername     = []string{"MAUTIC_API_USER", "MAUTIC_USERNAME", "MAUTIC_USER"}
-	envPassword     = []string{"MAUTIC_API_KEY", "MAUTIC_PASSWORD", "MAUTIC_API_PASSWORD"}
-	envClientID     = []string{"MAUTIC_CLIENT_ID", "MAUTIC_OAUTH_CLIENT_ID"}
-	envClientSecret = []string{"MAUTIC_CLIENT_SECRET", "MAUTIC_OAUTH_CLIENT_SECRET"}
+	envBaseURL  = []string{"MAUTIC_BASE_URL", "MAUTIC_API_ENDPOINT", "MAUTIC_URL"}
+	envUsername = []string{"MAUTIC_API_USER", "MAUTIC_USERNAME", "MAUTIC_USER"}
+	envPassword = []string{"MAUTIC_API_KEY", "MAUTIC_PASSWORD", "MAUTIC_API_PASSWORD"}
+	// Mautic's own API Credentials screen labels these "Public Key" and
+	// "Secret Key", so that is what people paste into their .env. Accepting
+	// those spellings turns "why doesn't it see my client id" into a non-event.
+	envClientID     = []string{"MAUTIC_CLIENT_ID", "MAUTIC_OAUTH_CLIENT_ID", "MAUTIC_OAUTH2_PUBLIC_KEY", "MAUTIC_PUBLIC_KEY"}
+	envClientSecret = []string{"MAUTIC_CLIENT_SECRET", "MAUTIC_OAUTH_CLIENT_SECRET", "MAUTIC_OAUTH2_SECRET_KEY", "MAUTIC_SECRET_KEY"}
 	envAccessToken  = []string{"MAUTIC_ACCESS_TOKEN"}
 	envRefreshToken = []string{"MAUTIC_REFRESH_TOKEN"}
 	envRedirect     = []string{"MAUTIC_OAUTH2_REDIRECT_URI", "MAUTIC_REDIRECT_URI"}
@@ -90,6 +93,14 @@ func firstNonEmpty(vals ...string) string {
 	}
 	return ""
 }
+
+// Environment accessors for the OAuth2 login flow, which resolves its inputs
+// before a profile exists and so cannot go through Resolve. Without these,
+// `auth login` would be the one command that ignores the environment.
+func EnvBaseURL() string      { return NormalizeBaseURL(env(envBaseURL)) }
+func EnvClientID() string     { return env(envClientID) }
+func EnvClientSecret() string { return env(envClientSecret) }
+func EnvRedirect() string     { return env(envRedirect) }
 
 // ResolveProfileName reports which profile would be used, without requiring it
 // to exist. Precedence: --profile > MAUTIC_PROFILE > default_profile.

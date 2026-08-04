@@ -170,13 +170,19 @@ Basic auth needs none of this: "mautic configure --username <user> --password
 			}
 			profileName := config.ResolveProfileName(cfg, firstNonEmptyStr(saveProfile, flagProfile))
 
-			baseURL, clientID, clientSecret := flagURL, flagClientID, flagClientSecret
+			// Same precedence as everywhere else: flag > environment > profile.
+			// This command resolves its inputs before a profile exists, so it
+			// cannot go through config.Resolve and has to compose the order
+			// itself.
+			baseURL := firstNonEmptyStr(flagURL, config.EnvBaseURL())
+			clientID := firstNonEmptyStr(flagClientID, config.EnvClientID())
+			clientSecret := firstNonEmptyStr(flagClientSecret, config.EnvClientSecret())
+			redirect = firstNonEmptyStr(redirect, config.EnvRedirect())
+
 			if prof, ok := cfg.Profiles[profileName]; ok {
 				baseURL = firstNonEmptyStr(baseURL, prof.BaseURL)
 				clientID = firstNonEmptyStr(clientID, prof.ClientID)
-				if redirect == "" {
-					redirect = prof.Redirect
-				}
+				redirect = firstNonEmptyStr(redirect, prof.Redirect)
 			}
 			secrets, err := config.LoadSecrets()
 			if err != nil {
