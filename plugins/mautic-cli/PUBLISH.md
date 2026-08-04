@@ -17,11 +17,25 @@
 
 ## Tagging
 
+タグは2種類ある。**両方打つ。**
+
 ```bash
 git checkout main && git pull
-git tag -a v0.1.0 -m "v0.1.0"
-git push origin v0.1.0
+
+# ① バイナリのリリース。release ワークフローが v* で発火し goreleaser が走る
+git tag -a v0.2.0 -m "v0.2.0"
+git push origin v0.2.0
+
+# ② プラグインのリリースマーカー。plugin.json と marketplace エントリの
+#    整合を検証したうえで mautic-cli--v0.2.0 を打つ。v* にマッチしないので
+#    リリースワークフローは発火しない
+claude plugin tag plugins/mautic-cli --push -m "mautic-cli %s"
 ```
+
+marketplace のエントリは `git-subdir` でデフォルトブランチを追うため、②を
+打っても配信内容は変わらない（`plugin.json` の version がそのまま配られる）。
+②はバージョンの記録と、`plugin.json` と marketplace エントリの食い違いを
+リリース時に検出するためのもの。
 
 ## Registering in the marketplace (first release only)
 
@@ -72,6 +86,29 @@ curl -sS -G https://context7.com/api/v2/search --data-urlencode 'query=mautic-cl
 
 インデックス中のリポジトリは検索結果に**現れない**（404 も返る）。これはエラー
 ではないので、最初の 404 を失敗と判断しないこと。
+
+### ⚠️ 未解決: llmdocs が取り込まれていない（2026-08-04 時点）
+
+初回インデックスで `internal/llmdocs/` が1チャンクも入らず、ルートの
+`README.md` だけになっている（`totalTokens=3135`）。`context7.json` の
+`folders` には指定済みなので指定漏れではない。詳細と仮説は
+リポジトリ直下の `CLAUDE.md`。
+
+**`POST /api/v1/refresh` には10日のクールダウンがあり、最終更新
+2026-08-02 に対して 2026-08-12 以降でないと再実行できない。**
+次にこのファイルを読んだのがその日以降なら、まず以下を実行すること。
+
+```bash
+curl -sS -X POST https://context7.com/api/v1/refresh \
+  -H "Authorization: Bearer $CONTEXT7_API_KEY" -H 'Content-Type: application/json' \
+  -d '{"libraryName":"/ideamans/mautic-cli"}'
+
+# 数分待ってから、llmdocs が入ったか確認する。README.md しか出なければ未解決
+curl -sS -G https://context7.com/api/v2/context \
+  --data-urlencode 'libraryId=/ideamans/mautic-cli' \
+  --data-urlencode 'query=segments are called lists' \
+  -H "Authorization: Bearer $CONTEXT7_API_KEY" | grep '^Source:'
+```
 
 `CONTEXT7_API_KEY` が無ければ <https://context7.com/add-library> のフォームから。
 
