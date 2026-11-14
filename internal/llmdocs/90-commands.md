@@ -17,7 +17,7 @@ Global flags apply to every command and are listed once, under `mautic`.
 | `--format` | string | `table` | output format: table, json, jsonl or csv |
 | `--password` | string | — | Mautic password for basic auth (env: MAUTIC_API_KEY) |
 | `--profile` | string | — | named profile to use (env: MAUTIC_PROFILE) |
-| `--retries` | int | `3` | extra attempts for HTTP 429 and 5xx responses |
+| `--retries` | int | `3` | extra attempts for HTTP 429 and 5xx responses (0 = none; POST and PATCH are retried only on 429) |
 | `--timeout` | duration | `1m0s` | timeout for a single HTTP request |
 | `--url` | string | — | Mautic instance URL, with or without a trailing /api (env: MAUTIC_BASE_URL, MAUTIC_API_ENDPOINT) |
 | `--username` | string | — | Mautic username for basic auth (env: MAUTIC_API_USER) |

@@ -115,6 +115,26 @@ automatically with backoff, honouring `Retry-After`; past that, space the calls
 out. Bulk work belongs in `contacts batch` and in `--all`, not in a loop of
 single requests.
 
+## A 500 on a write may still have saved the record
+
+Mautic sometimes saves the record and only then fails while building the
+response (seen with `forms create`: HTTP 500, yet the form exists). For that
+reason the CLI retries a POST or PATCH only on 429, never on 5xx or a dropped
+connection; GET, PUT and DELETE are still retried. After a failed write, look
+before you try again: `mautic forms list --search name:...` (or the matching
+`list`) shows whether the record was created. `--retries 0` turns retries off
+completely.
+
+## Form fields from plugins cannot be created over the API
+
+`plugin.recaptcha`, `plugin.captcha` and other `plugin.*` field types are stored
+when sent through the API, but the template that renders them is part of the
+field's `customParameters`, which only the form builder in the UI sets. The form
+then returns HTTP 500 wherever it is shown, including `/form/generate.js`. The
+CLI refuses such fields in `forms create` and `forms update`. Create the form
+without them and add the field in Mautic (Components → Forms → the form →
+Fields).
+
 ## A batch 200 does not mean every record succeeded
 
 `contacts batch create` and `batch update` return a `statusCodes` array with one

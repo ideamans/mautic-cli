@@ -94,7 +94,7 @@ wrong answers.`,
 	pf.BoolVar(&flagDryRun, "dry-run", false, "print the request that would be sent and send nothing")
 	pf.BoolVar(&flagYes, "yes", false, "skip the confirmation gate on destructive commands")
 	pf.DurationVar(&flagTimeout, "timeout", 60*time.Second, "timeout for a single HTTP request")
-	pf.IntVar(&flagRetries, "retries", 3, "extra attempts for HTTP 429 and 5xx responses")
+	pf.IntVar(&flagRetries, "retries", 3, "extra attempts for HTTP 429 and 5xx responses (0 = none; POST and PATCH are retried only on 429)")
 	pf.BoolVar(&flagVerbose, "verbose", false, "log each request to stderr")
 
 	root.AddCommand(

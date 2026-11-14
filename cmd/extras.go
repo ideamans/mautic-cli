@@ -471,3 +471,30 @@ func splitCSV(s string) []string {
 	}
 	return out
 }
+
+// validateFormFields refuses form fields whose type comes from a plugin
+// (plugin.recaptcha, plugin.captcha, ...). Mautic stores them over the API, but
+// the template that renders them lives in the field's customParameters, which
+// only the form builder in the UI fills in. The form then fails with a 500
+// ("Unable to find one of the following templates: .../Field/plugin.recaptcha.html.twig")
+// wherever it is embedded, including /form/generate.js.
+func validateFormFields(payload map[string]any) error {
+	fields, ok := payload["fields"].([]any)
+	if !ok {
+		return nil
+	}
+	var bad []string
+	for _, f := range fields {
+		m, ok := f.(map[string]any)
+		if !ok {
+			continue
+		}
+		if t, _ := m["type"].(string); strings.HasPrefix(t, "plugin.") {
+			bad = append(bad, t)
+		}
+	}
+	if len(bad) == 0 {
+		return nil
+	}
+	return fmt.Errorf("form fields of type %s cannot be created through the API: Mautic saves them, but the form then returns HTTP 500 wherever it is shown, because the template for a plugin field is only set by the form builder in the UI. Create the form without them and add them in Mautic under Components -> Forms", strings.Join(bad, ", "))
+}

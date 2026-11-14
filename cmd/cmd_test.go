@@ -201,3 +201,15 @@ func TestCoerceKeepsAmbiguousValuesAsStrings(t *testing.T) {
 		}
 	}
 }
+
+func TestFormFieldsRefusePluginTypes(t *testing.T) {
+	ok := map[string]any{"fields": []any{map[string]any{"type": "email"}, map[string]any{"type": "hidden"}}}
+	if err := validateFormFields(ok); err != nil {
+		t.Fatalf("plain fields should pass: %v", err)
+	}
+	bad := map[string]any{"fields": []any{map[string]any{"type": "email"}, map[string]any{"type": "plugin.recaptcha"}}}
+	err := validateFormFields(bad)
+	if err == nil || !strings.Contains(err.Error(), "plugin.recaptcha") {
+		t.Fatalf("plugin.recaptcha should be refused, got %v", err)
+	}
+}

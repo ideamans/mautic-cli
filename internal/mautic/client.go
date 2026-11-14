@@ -51,7 +51,9 @@ type Options struct {
 	Auth Authenticator
 	// Timeout bounds a single HTTP request. Zero means 60s.
 	Timeout time.Duration
-	// Retries is the number of extra attempts for 429 and 5xx. Zero means 3.
+	// Retries is the number of extra attempts for 429 and 5xx. Zero means no
+	// retries; a negative value means the default (3). Writes that are not
+	// idempotent (POST, PATCH) are retried only on 429 — see retryable.
 	Retries int
 	// DryRun makes every non-GET request return a description of what would
 	// have been sent, without sending it.
@@ -72,7 +74,7 @@ func New(o Options) *Client {
 		timeout = 60 * time.Second
 	}
 	retries := o.Retries
-	if retries <= 0 {
+	if retries < 0 {
 		retries = 3
 	}
 	base := strings.TrimRight(o.BaseURL, "/")
@@ -169,7 +171,7 @@ func (c *Client) Do(ctx context.Context, method, path string, query url.Values, 
 			return raw, nil
 		}
 		lastErr = err
-		if !retryable(err) {
+		if !retryable(method, err) {
 			return nil, err
 		}
 	}
@@ -243,13 +245,29 @@ func (c *Client) retryDelay(attempt int, err error) time.Duration {
 	return c.backoff << (attempt - 1)
 }
 
-func retryable(err error) bool {
+// retryable decides whether a failed attempt is worth repeating.
+//
+// A 429 means the request was turned away before Mautic did anything, so it is
+// safe to repeat for every method. A 5xx or a dropped connection is different:
+// Mautic often saves the record and only then fails while building the response
+// (seen with POST /forms/new, which created the form and returned 500 — three
+// retries left four identical forms). Repeating a GET, PUT or DELETE is
+// harmless, but repeating a POST creates the record again and a PATCH may apply
+// twice, so those are not retried. The caller gets the error and can check what
+// was saved before trying again.
+func retryable(method string, err error) bool {
 	ae, ok := err.(*APIError)
-	if !ok {
-		// Network-level failure: worth one more go.
+	if ok && ae.Status == 429 {
 		return true
 	}
-	return ae.Status == 429 || ae.Status >= 500
+	if method == http.MethodPost || method == http.MethodPatch {
+		return false
+	}
+	if !ok {
+		// Network-level failure on an idempotent request: worth one more go.
+		return true
+	}
+	return ae.Status >= 500
 }
 
 func (c *Client) tracef(format string, args ...any) {

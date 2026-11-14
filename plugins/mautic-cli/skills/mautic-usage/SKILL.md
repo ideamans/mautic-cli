@@ -116,6 +116,8 @@ mautic contacts list --help
 | `the response was not JSON` | the URL points at the website rather than Mautic, or a login page came back |
 | `HTTP 422` with rejected fields | wrong field alias or type — `mautic fields list` |
 | `HTTP 429` | already retried with backoff; space the calls out or use `--all` instead of a loop |
+| `HTTP 500` on `create` / `update` | Mautic may have saved the record anyway; writes are not retried on 5xx — run the matching `list` before trying again, or you create duplicates |
+| `form fields of type plugin.* cannot be created through the API` | intended: reCAPTCHA and other plugin fields break the form (HTTP 500 on embed) when created over the API — create the form without them and add them in the Mautic form builder |
 | `... is destructive and was not performed` | intended: re-run with `--dry-run` to inspect, `--yes` to proceed |
 | write succeeded but nothing changed | the property name was not one Mautic knows — verify with `get`, check `mautic fields list` |
 | wrong instance was touched | `mautic auth status` names the instance; select another with `--profile <name>` |

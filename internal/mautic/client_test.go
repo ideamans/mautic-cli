@@ -288,3 +288,59 @@ func TestErrorDetailsAsObject(t *testing.T) {
 		t.Errorf("the rejected field should be named:\n%v", e)
 	}
 }
+
+// Mautic can save a record and then fail with 500 while building the response.
+// Repeating a POST would create the record again, so writes are not retried on
+// 5xx (a 429 is still retried: the request was refused before anything ran).
+func TestDoesNotRetryPostOn5xx(t *testing.T) {
+	var calls int32
+	c, _ := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"errors":[{"message":"Looks like I encountered an error","code":500}]}`))
+	})
+	if _, err := c.Do(context.Background(), "POST", "/forms/new", nil, []byte(`{"name":"x"}`)); err == nil {
+		t.Fatal("POST should have failed")
+	}
+	if _, err := c.Do(context.Background(), "PATCH", "/forms/1/edit", nil, []byte(`{"name":"x"}`)); err == nil {
+		t.Fatal("PATCH should have failed")
+	}
+	if calls != 2 {
+		t.Errorf("calls = %d, want 2 (one each, no retries)", calls)
+	}
+}
+
+func TestRetriesPostOn429(t *testing.T) {
+	var calls int32
+	c, _ := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if atomic.AddInt32(&calls, 1) == 1 {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		w.Write([]byte(`{"form":{"id":1}}`))
+	})
+	if _, err := c.Do(context.Background(), "POST", "/forms/new", nil, []byte(`{"name":"x"}`)); err != nil {
+		t.Fatalf("POST should have succeeded after a 429: %v", err)
+	}
+	if calls != 2 {
+		t.Errorf("calls = %d, want 2", calls)
+	}
+}
+
+func TestZeroRetriesMeansNone(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	t.Cleanup(srv.Close)
+	c := New(Options{BaseURL: srv.URL, Auth: &BasicAuth{Username: "u", Password: "p"}, Retries: 0})
+	c.backoff = time.Millisecond
+	if _, err := c.Get(context.Background(), "/contacts", nil); err == nil {
+		t.Fatal("GET should have failed")
+	}
+	if calls != 1 {
+		t.Errorf("calls = %d, want 1 (--retries 0 must not retry)", calls)
+	}
+}

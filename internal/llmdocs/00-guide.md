@@ -143,6 +143,8 @@ mautic contacts batch create --data @contacts.json --yes
 | `the response was not JSON` | the URL points at the site, not the API, or a login page came back | check `mautic auth status`; do not put `/api` in the path passed to `mautic api` |
 | `HTTP 422` with `rejected fields` | wrong field alias or type | `mautic fields list` |
 | `HTTP 429` | Mautic's API rate limiter | already retried with backoff — space the calls out |
+| `HTTP 500` on `create` / `update` | Mautic failed after saving | not retried (it would duplicate the record): `list` first to see what was saved |
+| a form embeds with HTTP 500 | a `plugin.*` field (reCAPTCHA) created over the API | the CLI now refuses these; add the field in the UI |
 | a write "succeeds" but nothing changed | the property name was not one Mautic knows | Mautic ignores unknown properties silently; verify with `get` |
 | sort order looks wrong | `--order-by` was given a camelCase name | use the snake_case column: `date_identified`, not `dateIdentified` |
 | empty email/name columns on contacts | anonymous visitors are contacts too | filter with `--where email:isNotNull` |

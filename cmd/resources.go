@@ -78,6 +78,9 @@ type Resource struct {
 
 	// Extra adds resource-specific subcommands to the group.
 	Extra func(group *cobra.Command, r Resource)
+	// Validate, when set, checks a create or update body before it is sent.
+	// Use it for things Mautic accepts over the API but then breaks on.
+	Validate func(payload map[string]any) error
 }
 
 func (r Resource) idName() string {
@@ -274,6 +277,11 @@ func (r Resource) createCommand() *cobra.Command {
 			if len(payload) == 0 {
 				return fmt.Errorf("nothing to create: pass at least one field flag, --set name=value or --data @file.json")
 			}
+			if r.Validate != nil {
+				if err := r.Validate(payload); err != nil {
+					return err
+				}
+			}
 			noteTarget(cmd, creds)
 			raw, err := client.Do(cmd.Context(), "POST", r.apiPath("new"), nil, payload)
 			if err != nil {
@@ -308,6 +316,11 @@ func (r Resource) updateCommand() *cobra.Command {
 			}
 			if len(payload) == 0 {
 				return fmt.Errorf("nothing to update: pass at least one field flag, --set name=value or --data @file.json")
+			}
+			if r.Validate != nil {
+				if err := r.Validate(payload); err != nil {
+					return err
+				}
 			}
 			method := "PATCH"
 			if replace {
