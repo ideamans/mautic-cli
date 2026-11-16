@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -81,6 +82,12 @@ type Resource struct {
 	// Validate, when set, checks a create or update body before it is sent.
 	// Use it for things Mautic accepts over the API but then breaks on.
 	Validate func(payload map[string]any) error
+	// BeforePatch, when set, runs before a PATCH update (not --replace) and may
+	// add properties to the body. Use it for properties Mautic resets to their
+	// default when a PATCH omits them. It returns a note for stderr, or "".
+	BeforePatch func(ctx context.Context, client *mautic.Client, id string, payload map[string]any) (string, error)
+	// UpdateNote, when set, is appended to the update command's long help.
+	UpdateNote string
 }
 
 func (r Resource) idName() string {
@@ -300,10 +307,14 @@ func (r Resource) createCommand() *cobra.Command {
 func (r Resource) updateCommand() *cobra.Command {
 	body := newBodyFlags(r.Fields)
 	var replace bool
+	long := fmt.Sprintf("Update a %s.\n\nBy default this sends PATCH, which changes only the fields you pass. With\n--replace it sends PUT, which replaces the whole record and blanks every field\nyou did not provide.", singular(r.Name))
+	if r.UpdateNote != "" {
+		long += "\n\n" + r.UpdateNote
+	}
 	cmd := &cobra.Command{
 		Use:   "update <" + r.idName() + ">",
 		Short: "Update a " + singular(r.Name),
-		Long:  fmt.Sprintf("Update a %s.\n\nBy default this sends PATCH, which changes only the fields you pass. With\n--replace it sends PUT, which replaces the whole record and blanks every field\nyou did not provide.", singular(r.Name)),
+		Long:  long,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, creds, err := newClient(cmd.Context())
@@ -327,6 +338,15 @@ func (r Resource) updateCommand() *cobra.Command {
 				method = "PUT"
 				if err := confirmed(cmd, "--replace overwrites every field that was not supplied, and"); err != nil {
 					return err
+				}
+			}
+			if method == "PATCH" && r.BeforePatch != nil {
+				note, err := r.BeforePatch(cmd.Context(), client, args[0], payload)
+				if err != nil {
+					return err
+				}
+				if note != "" {
+					fmt.Fprintln(cmd.ErrOrStderr(), "note: "+note)
 				}
 			}
 			noteTarget(cmd, creds)

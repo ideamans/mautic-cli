@@ -1,7 +1,7 @@
 {
   "name": "mautic-cli",
   "description": "Adds /mautic-usage and /mautic-install skills for Mautic marketing automation — read and write contacts, segments, campaigns and emails, query the stats tables for traffic and email performance, and switch between Mautic instances with named credential profiles.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "author": {
     "name": "Ideamans Inc.",
     "email": "support@ideamans.com"

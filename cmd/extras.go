@@ -1,11 +1,15 @@
 package cmd
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/ideamans/mautic-cli/internal/mautic"
 )
 
 // subList builds a read-only subcommand that lists a nested collection, such as
@@ -497,4 +501,41 @@ func validateFormFields(payload map[string]any) error {
 		return nil
 	}
 	return fmt.Errorf("form fields of type %s cannot be created through the API: Mautic saves them, but the form then returns HTTP 500 wherever it is shown, because the template for a plugin field is only set by the form builder in the UI. Create the form without them and add them in Mautic under Components -> Forms", strings.Join(bad, ", "))
+}
+
+// preserveFormPostAction keeps a form's post-submit behaviour across a PATCH.
+// Mautic's form edit endpoint resets postAction to its default ("return") when
+// the body does not carry it, even though PATCH is meant to leave absent
+// properties alone: adding one hidden field silently turned a redirecting form
+// into one that reloads the page. postActionProperty (the URL or message) is
+// kept by Mautic, but is sent along so the pair stays consistent.
+//
+// When the caller already set postAction (--post-action, --set or --data),
+// nothing is fetched. The lookup is a GET, so it also runs under --dry-run and
+// the printed body is the one that would really be sent.
+func preserveFormPostAction(ctx context.Context, client *mautic.Client, id string, payload map[string]any) (string, error) {
+	if _, ok := payload["postAction"]; ok {
+		return "", nil
+	}
+	raw, err := client.Get(ctx, "/forms/"+id, nil)
+	if err != nil {
+		return "", fmt.Errorf("reading form %s to keep its postAction (Mautic resets it to \"return\" when a PATCH omits it): %w\n  pass --post-action (and --post-action-property) explicitly to skip this lookup", id, err)
+	}
+	var form struct {
+		PostAction         *string `json:"postAction"`
+		PostActionProperty *string `json:"postActionProperty"`
+	}
+	if err := json.Unmarshal(unwrap(raw, "form"), &form); err != nil {
+		return "", fmt.Errorf("reading form %s to keep its postAction: %w", id, err)
+	}
+	if form.PostAction == nil || *form.PostAction == "" {
+		return "", nil
+	}
+	payload["postAction"] = *form.PostAction
+	added := "postAction=" + *form.PostAction
+	if _, ok := payload["postActionProperty"]; !ok && form.PostActionProperty != nil {
+		payload["postActionProperty"] = *form.PostActionProperty
+		added += " and its postActionProperty"
+	}
+	return fmt.Sprintf("kept the form's current %s (Mautic resets postAction when a PATCH omits it; pass --post-action to change it)", added), nil
 }
