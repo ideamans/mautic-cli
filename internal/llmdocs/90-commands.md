@@ -1738,6 +1738,12 @@ By default this sends PATCH, which changes only the fields you pass. With
 --replace it sends PUT, which replaces the whole record and blanks every field
 you did not provide.
 
+Mautic resets a form's postAction to "return" when a PATCH body omits it, so
+without --post-action this command first reads the form (a GET, which runs
+even under --dry-run) and sends its current postAction and postActionProperty
+back, with a note on stderr. Verify afterwards with
+`mautic forms get <id> --format json`.
+
 ```
 mautic forms update <id>
 ```

@@ -22,7 +22,7 @@ import (
 // PluginVersion is the single version source. plugins/mautic-cli's plugin.json
 // must match it (enforced by plugin_test.go) and so must the git tag (enforced
 // by the release workflow).
-const PluginVersion = "0.2.1"
+const PluginVersion = "0.2.2"
 
 // version is what --version reports. goreleaser overwrites it at build time
 // with -X github.com/ideamans/mautic-cli/cmd.version.

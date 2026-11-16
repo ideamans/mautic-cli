@@ -147,6 +147,10 @@ mautic stats query page_hits --where date_hit:gte:2026-08-01 --all --format json
 - `--dry-run` — 送信するリクエストを表示して、**送らない**
 - `--yes` — 破壊的コマンドの確認ゲートを解除する。付けなければ実行されない
 - 書き込み時は `target: <インスタンス> as <ユーザー>` を stderr に出す
+- `forms update` は `--post-action` を渡さない限り、フォームの現在の `postAction` と
+  `postActionProperty` を読んで本文に含める。Mautic は PATCH の本文に `postAction` が
+  無いと既定の `return` に戻してしまうため（リダイレクトが黙って止まる）。更新後は
+  `mautic forms get <id> --format json` で確かめる
 
 ```bash
 mautic emails send 42 --dry-run    # 何が起きるか見る

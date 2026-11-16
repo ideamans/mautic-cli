@@ -29,6 +29,7 @@
     "`mautic emails send` mails every contact in the email's segments and cannot be recalled: run --dry-run first, read the target line on stderr, and pass --yes deliberately.",
     "`mautic api <METHOD> <PATH>` reaches any endpoint this CLI does not wrap, reusing the same credentials, retries and --dry-run. PATH is relative to the API root, so pass /contacts and not /api/contacts.",
     "A failed create or update (HTTP 500) may still have saved the record, so the CLI does not retry POST or PATCH except on 429. Run the matching list command before trying again, or you create duplicates.",
-    "Form fields of type plugin.* (plugin.recaptcha and others) cannot be created through the API: the form then fails with HTTP 500 wherever it is embedded. The CLI refuses them; add those fields in the Mautic form builder."
+    "Form fields of type plugin.* (plugin.recaptcha and others) cannot be created through the API: the form then fails with HTTP 500 wherever it is embedded. The CLI refuses them; add those fields in the Mautic form builder.",
+    "Mautic resets a form's postAction to \"return\" when a PATCH body omits it. `mautic forms update` therefore reads the form first and sends its current postAction and postActionProperty back unless --post-action is given; raw `mautic api PATCH /forms/<id>/edit` does not. After any form update, verify with `mautic forms get <id> --format json`."
   ]
 }

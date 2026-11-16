@@ -94,6 +94,32 @@ nested lists and is dramatically faster; add `--fields` to pick what you need.
 which **blanks every field you did not supply**. That is why `--replace`
 requires `--yes`.
 
+## A form PATCH resets `postAction` unless it is in the body
+
+Mautic's `PATCH /forms/ID/edit` does not leave every absent property alone: when
+the body has no `postAction`, the form's post-submit behaviour goes back to the
+default `return` (reload the page). `postActionProperty` — the redirect URL or
+the message — survives, so the form *looks* intact in a `get` until you notice
+`postAction`. This was hit by adding a single hidden field with
+`forms update ID --form-fields '[...]'`: the field was added and a redirecting
+form stopped redirecting.
+
+`mautic forms update` now guards against it. Unless you pass `--post-action`
+(or `postAction` through `--set` / `--data`), it first reads the form and sends
+the current `postAction` and `postActionProperty` along, printing
+`note: kept the form's current postAction=...` on stderr. That read is a GET, so
+it also happens under `--dry-run`, and the dry-run body shows exactly what will
+be sent. `--replace` (PUT) is not guarded — it blanks everything you omit anyway.
+
+After any form update, check the result:
+
+```bash
+mautic forms get ID --format json | jq '{postAction, postActionProperty, fields: [.fields[] | .alias]}'
+```
+
+The same API, called directly with `mautic api PATCH /forms/ID/edit`, has no
+such guard.
+
 ## Unknown properties are ignored, not rejected
 
 Sending a property Mautic does not recognise usually returns 200 with the record
